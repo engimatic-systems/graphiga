@@ -99,7 +99,11 @@ Use separate external Cargo target directories to avoid branch build contention.
 Build caches are allowed. Keep examples and test mutations in disposable copies.
 Do not add snapshot/manifests or repeated source hashing to this experiment.
 
-### Persistent roles and one review per alternative
+### Proposed run configuration: confirm when starting
+
+The following is the prepared proposal for this new comparison, not an automatic
+extension of v0's run-specific one-pass override. The operator's start instruction
+must accept this configuration or replace it before workers are launched.
 
 Use a persistent implementer/reviewer pair **for each alternative**, with both
 roles `openai-codex/gpt-5.6-sol`, high thinking, and direct return messages to the
@@ -111,8 +115,8 @@ The primary orchestrates, dispositions findings, and checks integration-critical
 evidence. It does not implement either engine or add a hidden code-review pass.
 Start the assigned ticket before delegation and record worker identities.
 
-Keep the rapid-feedback v0 pattern: **one independent simplicity-focused pass
-per alternative**. Pause source writes while that branch is reviewed; a tested
+The proposal retains the rapid-feedback pattern: **one independent
+simplicity-focused pass per alternative**. Pause source writes while that branch is reviewed; a tested
 Git commit is enough. Focus on avoidable state, duplicate rules, unjustified
 abstractions, and frontend/evaluator complexity. Report material correctness
 problems encountered, but do not expand into an exhaustive production audit.
