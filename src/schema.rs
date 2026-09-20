@@ -55,6 +55,7 @@ pub(crate) struct NodeType {
 pub(crate) struct Schema {
     pub(crate) attributes: BTreeMap<String, Attribute>,
     pub(crate) types: BTreeMap<String, NodeType>,
+    queries: BTreeMap<String, String>,
 }
 
 #[derive(Deserialize)]
@@ -65,6 +66,8 @@ struct RawSchema {
     attributes: BTreeMap<String, RawAttribute>,
     #[serde(default)]
     types: BTreeMap<String, RawNodeType>,
+    #[serde(default)]
+    queries: BTreeMap<String, String>,
 }
 
 #[derive(Deserialize)]
@@ -144,7 +147,11 @@ impl Schema {
             );
         }
 
-        Ok(Self { attributes, types })
+        Ok(Self {
+            attributes,
+            types,
+            queries: raw.queries,
+        })
     }
 
     pub(crate) fn parse_cli_value(&self, name: &str, input: Option<&str>) -> Result<Value> {
@@ -170,6 +177,14 @@ impl Schema {
         parse_set_input(name, kind, input)
     }
 
+    pub(crate) fn parse_scalar_literal(&self, name: &str, input: &str) -> Result<Value> {
+        let attribute = self.attribute(name)?;
+        if matches!(attribute.kind, AttributeKind::Set(_)) {
+            bail!("attribute {name} is not scalar");
+        }
+        value_from_str(name, &attribute.kind, input)
+    }
+
     pub(crate) fn attribute(&self, name: &str) -> Result<&Attribute> {
         self.attributes
             .get(name)
@@ -180,6 +195,13 @@ impl Schema {
         self.types
             .get(name)
             .ok_or_else(|| anyhow::anyhow!("unknown node type {name}"))
+    }
+
+    pub(crate) fn query(&self, name: &str) -> Result<&str> {
+        self.queries
+            .get(name)
+            .map(String::as_str)
+            .ok_or_else(|| anyhow::anyhow!("unknown query {name}"))
     }
 
     pub(crate) fn value_from_toml(&self, name: &str, value: &toml::Value) -> Result<Value> {

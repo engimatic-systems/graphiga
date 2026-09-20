@@ -1,5 +1,6 @@
 mod document;
 mod graph;
+mod query;
 mod schema;
 mod store;
 
@@ -40,6 +41,12 @@ enum Command {
     },
     /// List IDs, node types, and H1 titles in ID order.
     List {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Run a named schema query and show matching nodes in ID order.
+    Query {
+        name: String,
         #[arg(long)]
         json: bool,
     },
@@ -105,6 +112,7 @@ fn main() -> Result<()> {
             store.persist(&changes)?;
         }
         Command::List { json } => print_records(&graph.list()?, json)?,
+        Command::Query { name, json } => print_records(&graph.query(&name)?, json)?,
         Command::Show { id, full, section } => {
             let id = NodeId::parse(&id)?;
             let document = graph.show(&id)?;

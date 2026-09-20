@@ -24,10 +24,9 @@ is a development shell, not a global tool installation.
 The committed [reference stores](examples/README.md) contain the deferred FLAC
 inquiry and a tko-shaped ticket example. Use copies for mutation experiments.
 
-The [query-spike comparison](query-spikes/README.md) prepares one shared dataset
-and acceptance contract for predicate, Nemo, and Datafrog alternatives. Query execution
-is not implemented on this baseline; see the [handoff](query-spikes/HANDOFF.md)
-for the three branch assignments.
+The [query-spike comparison](query-spikes/README.md) supplies one shared dataset
+and acceptance contract for predicate, Nemo, and Datafrog alternatives. This branch
+implements the schema-resident [predicate alternative](query-spikes/PREDICATES-RESULTS.md).
 
 ## Usage
 
@@ -39,6 +38,22 @@ cargo run --locked -- --store ./specimen show storage-savings --section Investig
 cargo run --locked -- --store ./specimen edges storage-savings related --json
 cargo run --locked -- --store ./specimen add storage-savings related processing-cost
 ```
+
+A store may define named predicate strings in the root `[queries]` table of
+`schema.toml`. Run one in compact or JSON form with:
+
+```sh
+graphiga --store STORE query ready
+graphiga --store STORE query ready --json
+```
+
+The predicate language supports scalar `= != < <= > >=`, scalar `in [...]`,
+set `contain`, `has`/`no`, `not`/`and`/`or` with parentheses, and the bounded
+reference forms `any ATTRIBUTE (predicate)` and `reaches ATTRIBUTE ID`.
+Declarations use bare tokens only: there are no quoted literals or escapes, so
+values containing whitespace or grammar punctuation cannot be expressed.
+Fields and literals are checked against the store schema before nodes are
+scanned. Structural `id`, `type`, and `title` are also readable fields.
 
 Create a node with fixed two-value `--set` and `--section` groups:
 
