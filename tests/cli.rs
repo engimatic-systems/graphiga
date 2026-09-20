@@ -530,3 +530,108 @@ sections = []
     assert!(b.contains("partner = \"a\""));
     assert!(!c.contains("partner ="));
 }
+
+fn nemo_query_store(query: &str, documents: &[(&str, &str)]) -> TempDir {
+    let store = tempfile::tempdir().unwrap();
+    let schema = format!(
+        r#"version = 0
+[attributes.parent]
+type = "reference"
+direction = "directed"
+[attributes.tags]
+type = "set"
+items = "string"
+[attributes.enabled]
+type = "boolean"
+required = true
+[attributes.count]
+type = "integer"
+required = true
+[types.item]
+sections = []
+[queries]
+check = '''
+{query}
+'''
+"#
+    );
+    fs::write(store.path().join("schema.toml"), schema).unwrap();
+    for (id, document) in documents {
+        fs::write(store.path().join(format!("{id}.md")), document).unwrap();
+    }
+    store
+}
+
+#[test]
+fn nemo_query_uses_typed_facts_recursion_and_stratified_negation() {
+    let query = r#"
+ancestor(?N, ?A) :- edge(?N, "parent", ?A).
+ancestor(?N, ?A) :- edge(?N, "parent", ?P), ancestor(?P, ?A).
+blocked(?N) :- attr(?N, "tags", "blocked").
+candidate(?N) :- ancestor(?N, "root"), attr(?N, "enabled", true), attr(?N, "count", 2).
+result(?N) :- candidate(?N), ~blocked(?N).
+"#;
+    let store = nemo_query_store(
+        query,
+        &[
+            (
+                "root",
+                "+++\ntype = \"item\"\nenabled = false\ncount = 0\n+++\n\n# Root\n",
+            ),
+            (
+                "middle",
+                "+++\ntype = \"item\"\nparent = \"root\"\nenabled = true\ncount = 2\ntags = [\"blocked\"]\n+++\n\n# A \"\"\" title\n",
+            ),
+            (
+                "leaf",
+                "+++\ntype = \"item\"\nparent = \"middle\"\nenabled = true\ncount = 2\n+++\n\n# Leaf\n",
+            ),
+        ],
+    );
+
+    let json: Value =
+        serde_json::from_str(&success(store.path(), &["query", "check", "--json"])).unwrap();
+    assert_eq!(json.as_array().unwrap().len(), 1);
+    assert_eq!(json[0]["id"], "leaf");
+    assert_eq!(
+        success(store.path(), &["query", "check"]),
+        "leaf  item  Leaf\n"
+    );
+}
+
+#[test]
+fn nemo_query_rejects_invalid_public_relation_contracts_without_running_imports() {
+    let cases = [
+        (
+            "node(\"invented\", \"item\", \"Invented\").\nresult(?N) :- node(?N, ?T, ?Title).",
+            "may not redefine read-only base relation node",
+        ),
+        (
+            "result(?N) :- node(?N).",
+            "base relation node must have arity 3",
+        ),
+        (
+            "@import external :- csv { resource = \"https://example.invalid/data.csv\" }.\nresult(?N) :- external(?N).",
+            "may not contain Nemo import directives",
+        ),
+        (
+            "result(?N) :- node(?N, ?T, ?Title), ~blocked(?N).\nblocked(?N) :- node(?N, ?T, ?Title), ~result(?N).",
+            "not stratified",
+        ),
+        ("other(?N) :- node(?N, ?T, ?Title).", "must define result/1"),
+    ];
+
+    for (query, message) in cases {
+        let store = nemo_query_store(query, &[]);
+        let output = graphiga(store.path(), &["query", "check", "--json"]);
+        assert!(
+            !output.status.success(),
+            "query unexpectedly succeeded: {query}"
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(message),
+            "missing {message:?} in stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}

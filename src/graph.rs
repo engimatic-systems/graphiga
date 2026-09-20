@@ -29,6 +29,14 @@ impl<'a> Graph<'a> {
         self.records(self.documents.keys())
     }
 
+    pub(crate) async fn query(&self, name: &str) -> Result<Vec<NodeRecord>> {
+        let source = self.schema.query(name)?;
+        let ids = crate::query::execute(self.schema, self.documents, source)
+            .await
+            .with_context(|| format!("execute query {name}"))?;
+        self.records(ids.iter())
+    }
+
     pub(crate) fn show(&self, id: &NodeId) -> Result<&Document> {
         self.documents
             .get(id)

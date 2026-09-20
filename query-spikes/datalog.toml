@@ -2,17 +2,17 @@
 # Each program exports result(NodeId). Facts are projected from the document graph.
 [queries]
 open_backups = '''
-result(N) :- attr(N, "status", "open"), attr(N, "tags", "backups").
+result(?N) :- attr(?N, "status", "open"), attr(?N, "tags", "backups").
 '''
 ready = '''
-active(N) :- attr(N, "status", "open").
-active(N) :- attr(N, "status", "in_progress").
-closed(N) :- attr(N, "status", "closed").
-unresolved(N) :- edge(N, "deps", D), not closed(D).
-result(N) :- active(N), not unresolved(N).
+active(?N) :- attr(?N, "status", "open").
+active(?N) :- attr(?N, "status", "in_progress").
+closed(?N) :- attr(?N, "status", "closed").
+unresolved(?N) :- edge(?N, "deps", ?D), ~closed(?D).
+result(?N) :- active(?N), ~unresolved(?N).
 '''
 epic_descendants = '''
-ancestor(N, A) :- edge(N, "parent", A).
-ancestor(N, A) :- edge(N, "parent", P), ancestor(P, A).
-result(N) :- ancestor(N, "demo-epic"), N != "demo-epic".
+ancestor(?N, ?A) :- edge(?N, "parent", ?A).
+ancestor(?N, ?A) :- edge(?N, "parent", ?P), ancestor(?P, ?A).
+result(?N) :- ancestor(?N, "demo-epic"), ?N != "demo-epic".
 '''

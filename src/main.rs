@@ -1,5 +1,6 @@
 mod document;
 mod graph;
+mod query;
 mod schema;
 mod store;
 
@@ -40,6 +41,12 @@ enum Command {
     },
     /// List IDs, node types, and H1 titles in ID order.
     List {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Execute a named schema-resident query.
+    Query {
+        name: String,
         #[arg(long)]
         json: bool,
     },
@@ -85,7 +92,8 @@ enum Command {
     },
 }
 
-fn main() -> Result<()> {
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
     let store = Store::load(&cli.store)?;
     let graph = Graph::new(&store.schema, &store.documents);
@@ -105,6 +113,7 @@ fn main() -> Result<()> {
             store.persist(&changes)?;
         }
         Command::List { json } => print_records(&graph.list()?, json)?,
+        Command::Query { name, json } => print_records(&graph.query(&name).await?, json)?,
         Command::Show { id, full, section } => {
             let id = NodeId::parse(&id)?;
             let document = graph.show(&id)?;
@@ -161,11 +170,12 @@ fn main() -> Result<()> {
 }
 
 fn grouped_values(option: &str, values: Vec<String>) -> Result<BTreeMap<String, String>> {
-    if !values.len().is_multiple_of(2) {
+    let (pairs, remainder) = values.as_chunks::<2>();
+    if !remainder.is_empty() {
         bail!("{option} requires exactly two values per occurrence");
     }
     let mut groups = BTreeMap::new();
-    for pair in values.chunks_exact(2) {
+    for pair in pairs {
         if groups.insert(pair[0].clone(), pair[1].clone()).is_some() {
             bail!("{option} repeats name {}", pair[0]);
         }

@@ -24,10 +24,10 @@ is a development shell, not a global tool installation.
 The committed [reference stores](examples/README.md) contain the deferred FLAC
 inquiry and a tko-shaped ticket example. Use copies for mutation experiments.
 
-The [query-spike comparison](query-spikes/README.md) prepares one shared dataset
-and acceptance contract for predicate, Nemo, and Datafrog alternatives. Query execution
-is not implemented on this baseline; see the [handoff](query-spikes/HANDOFF.md)
-for the three branch assignments.
+The [query-spike comparison](query-spikes/README.md) uses one shared dataset
+and acceptance contract for predicate, Nemo, and Datafrog alternatives. This branch
+implements the [Nemo alternative](query-spikes/NEMO-REPORT.md); it does not add a
+runtime engine selector or change the v0 mutation model.
 
 ## Usage
 
@@ -38,7 +38,13 @@ cargo run --locked -- --store ./specimen list
 cargo run --locked -- --store ./specimen show storage-savings --section Investigation --full
 cargo run --locked -- --store ./specimen edges storage-savings related --json
 cargo run --locked -- --store ./specimen add storage-savings related processing-cost
+cargo run --locked -- --store ./query-spikes/store query ready --json
 ```
+
+Named queries are strings in the schema's root `[queries]` table. This branch
+accepts Nemo's native rule syntax and requires each query to define a unary
+`result(?NodeId)` relation. See the branch report for the dialect and fact
+projection contract.
 
 Create a node with fixed two-value `--set` and `--section` groups:
 
