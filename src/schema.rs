@@ -55,6 +55,7 @@ pub(crate) struct NodeType {
 pub(crate) struct Schema {
     pub(crate) attributes: BTreeMap<String, Attribute>,
     pub(crate) types: BTreeMap<String, NodeType>,
+    queries: BTreeMap<String, String>,
 }
 
 #[derive(Deserialize)]
@@ -65,6 +66,8 @@ struct RawSchema {
     attributes: BTreeMap<String, RawAttribute>,
     #[serde(default)]
     types: BTreeMap<String, RawNodeType>,
+    #[serde(default)]
+    queries: BTreeMap<String, String>,
 }
 
 #[derive(Deserialize)]
@@ -144,7 +147,22 @@ impl Schema {
             );
         }
 
-        Ok(Self { attributes, types })
+        for name in raw.queries.keys() {
+            validate_token("query name", name)?;
+        }
+
+        Ok(Self {
+            attributes,
+            types,
+            queries: raw.queries,
+        })
+    }
+
+    pub(crate) fn query(&self, name: &str) -> Result<&str> {
+        self.queries
+            .get(name)
+            .map(String::as_str)
+            .ok_or_else(|| anyhow::anyhow!("unknown query {name}"))
     }
 
     pub(crate) fn parse_cli_value(&self, name: &str, input: Option<&str>) -> Result<Value> {

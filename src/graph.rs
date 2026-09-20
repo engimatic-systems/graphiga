@@ -4,6 +4,7 @@ use anyhow::{Context, Result, bail};
 use serde::Serialize;
 
 use crate::document::Document;
+use crate::query;
 use crate::schema::{AttributeKind, Direction, Schema, SetKind, Value};
 use crate::store::NodeId;
 
@@ -27,6 +28,13 @@ impl<'a> Graph<'a> {
 
     pub(crate) fn list(&self) -> Result<Vec<NodeRecord>> {
         self.records(self.documents.keys())
+    }
+
+    pub(crate) fn query(&self, name: &str) -> Result<Vec<NodeRecord>> {
+        let source = self.schema.query(name)?;
+        let ids = query::evaluate(source, self.schema, self.documents)
+            .with_context(|| format!("evaluate query {name}"))?;
+        self.records(ids.iter())
     }
 
     pub(crate) fn show(&self, id: &NodeId) -> Result<&Document> {
