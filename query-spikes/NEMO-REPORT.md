@@ -102,21 +102,37 @@ python3 query-spikes/verify.py --binary \
   --language datalog                                   PASS
 ```
 
+The post-review component-narrowing repair reran that full sequence in the
+narrowed shell with the same tool versions; every check passed again (1 unit and
+9 CLI tests). A local `nix path-info -Sh` measurement confirmed the selected
+four-component toolchain closure at 912.4 MiB. The repair is tested but not
+independently re-reviewed.
+
 ## 4. Simplicity review
 
-The required independent simplicity review has not yet run. Source writes pause
-at the tested commit before that review. Findings, dispositions, and any tested
-but unreviewed repairs will be recorded here after orchestration.
+The sole independent simplicity review examined commit `768d3b6b5597006bb177adeb05b6abbdceabab89`.
+It found genuine Nemo parser/evaluator use, appropriate local contract checks,
+a justified Tokio dependency, and no actionable correctness issue or other
+simplicity finding.
+
+One medium-severity finding was accepted: the development shell selected Fenix's
+entire `complete.toolchain` even though Graphiga uses only Cargo, Clippy, rustc,
+and rustfmt. At the same pinned Fenix revision, the reviewer measured a 2.0 GiB
+closure for the complete toolchain and 912.4 MiB after selecting those four
+components with `complete.withComponents`; tool versions were unchanged. The
+post-review repair narrows only that component set. It is tested but was not
+independently re-reviewed, and no second review pass was authorized. The reviewed
+revision remains `768d3b6b5597006bb177adeb05b6abbdceabab89`.
 
 ## 5. Awkwardness, removable pieces, and limits
 
 - Nemo's library surface is async because it can support external imports, even
   though this adapter forbids imports. That requires Tokio and makes Graphiga's
   otherwise synchronous entry point async.
-- Nemo's dependency closure and nightly requirement dominate integration cost.
-  The Fenix `complete` toolchain is reproducible but includes more components
-  than Graphiga itself needs; narrowing it is a possible simplicity-review item
-  if it remains reliable.
+- Nemo's 292-package dependency increase, nightly requirement, and HTTP stack
+  dominate integration cost. The independent review found no Nemo v0.10.1
+  feature toggle that removes that stack, so these are recorded as intrinsic to
+  the pinned release rather than hidden with a fork or dependency refactor.
 - An empty derived relation appears as no physical predicate table. The adapter
   deliberately maps that engine result to an empty Graphiga result after the
   parsed program has proved that `result/1` is defined.

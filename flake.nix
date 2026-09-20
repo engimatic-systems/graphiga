@@ -12,7 +12,14 @@
     in
     {
       devShells.${system}.default = pkgs.mkShell {
-        packages = [ fenix.packages.${system}.complete.toolchain ];
+        packages = [
+          (fenix.packages.${system}.complete.withComponents [
+            "cargo"
+            "clippy"
+            "rustc"
+            "rustfmt"
+          ])
+        ];
       };
     };
 }
