@@ -1,0 +1,14 @@
+{
+  "baseline": {
+    "open_backups": ["demo-bug", "demo-free", "demo-task"],
+    "ready": ["demo-epic", "demo-free", "demo-other", "demo-phase", "demo-task"],
+    "epic_descendants": ["demo-bug", "demo-decision", "demo-free", "demo-held", "demo-phase", "demo-research", "demo-task"]
+  },
+  "decision_reopened": {
+    "ready": ["demo-decision", "demo-epic", "demo-free", "demo-other", "demo-phase"]
+  },
+  "task_closed": {
+    "open_backups": ["demo-bug", "demo-free"],
+    "ready": ["demo-bug", "demo-epic", "demo-free", "demo-other", "demo-phase"]
+  }
+}

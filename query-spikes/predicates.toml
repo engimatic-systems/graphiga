@@ -1,0 +1,5 @@
+# Query declarations for spike/query-predicates. Data lives in store/.
+[queries]
+open_backups = "status = open and tags contain backups"
+ready = "status in [open, in_progress] and not any deps (status != closed)"
+epic_descendants = "id != demo-epic and reaches parent demo-epic"
