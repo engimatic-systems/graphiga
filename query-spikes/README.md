@@ -1,12 +1,13 @@
-# Two query spikes, one workload
+# Three query spikes, one workload
 
 This is a prepared comparison contract, not an implemented query feature.
-Both alternatives start from the same committed Graphiga v0, use the same
+All three alternatives start from the same committed Graphiga v0, use the same
 [tko-shaped store](store/schema.toml), and must pass the same [runner](verify.py).
 Only query declaration syntax and its implementation differ.
 
 - `spike/query-predicates`: tko-derived predicates plus bounded graph operators.
 - `spike/query-datalog`: schema-resident textual Datalog using **Nemo**.
+- `spike/query-datafrog`: our own bounded frontend/planner over **Datafrog**.
 - [HANDOFF.md](HANDOFF.md) supplies launch authority, worker assignments, and
   reporting expectations. The operator has authorized the comparison run.
 
@@ -96,7 +97,7 @@ implementation pass. The Datalog implementer may adapt datalog.toml to Nemo's
 native syntax without changing names or meanings; no custom compatibility parser
 is wanted. That dialect-specific template is owned by the Datalog branch; its
 copy on the predicate branch is only a preparatory example. Other necessary
-corrections belong on the shared base and must reach both branches.
+corrections belong on the shared base and must reach all three branches.
 
 ## Predicate alternative
 
@@ -138,7 +139,7 @@ Reference: tko revision `373f5b16f4ebdcd610a57dec224b53230386d51b`,
 `/home/agent/sys/repos/tko`; do not modify it or carry ticket-specific evaluation
 into Graphiga. Respect source licensing/attribution if reusing implementation.
 
-## Datalog alternative
+## Nemo alternative
 
 [datalog.toml](datalog.toml) initially illustrates the query-local programs in
 conventional notation. The Datalog implementer must translate it to **Nemo's
@@ -198,6 +199,36 @@ Do not implement special handlers for the three example queries. The rules in
 schema must execute as rules; measure the adapter and dependency cost rather
 than designing an engine abstraction for future replacement.
 
+## Datafrog alternative
+
+The operator added this third arm to evaluate the cost of owning a small Datalog
+frontend/planner, independently of adopting Nemo. Use [datafrog.toml](datafrog.toml)
+as the schema declarations and the same fact projection, safe function-free
+rules, positive recursion, stratified negation and unary result relation described
+above. The no-bespoke-frontend requirement applies to Nemo, not this arm.
+
+Implement only a bounded runtime language: uppercase variable names, quoted
+string and scalar Boolean/integer constants, fixed-arity atoms, `:-` rules,
+comma conjunction, multiple rules for union, `not` negation, and `=`/`!=` filters.
+All head, negation and filter variables must be bound by positive body atoms.
+Reject unsafe rules, inconsistent arities, base-relation redefinitions and
+recursive negation. No functions, value generation, aggregates, callbacks or
+external effects. Finite facts/rule constants bound evaluation; relations are
+sets. Validate independently of whether the store is empty. Additional syntax
+needed solely to expose the three queries is an ordinary implementation choice;
+report limitations rather than grow a general language.
+
+**Datafrog must actually evaluate the rules** via its joins/antijoins and monotone
+iteration, not be an unused dependency around a handwritten fixpoint engine.
+Negated inputs must be completed fixed relations: compute lower strata first.
+Do not hardcode the three query names or their bodies in Rust. The schema must
+contain executable rule text, not labels for precompiled handlers.
+
+Pin the crate version. Count and explain all owned parsing, binding, planning,
+stratification and fact-projection code in the comparison report. Keep this
+implementation independent: no engine trait/plugin framework shared with Nemo
+or predicates. Reference: <https://github.com/rust-lang/datafrog>.
+
 ## Checks and comparison report
 
 From the branch checkout in its pinned Nix shell, after building:
@@ -207,8 +238,8 @@ cargo fmt --check
 cargo test --locked
 cargo clippy --locked --all-targets -- -D warnings
 python3 query-spikes/verify.py --binary /absolute/path/to/graphiga --language predicates
-# On the other branch, use --language datalog; this flag belongs to the test
-# runner only, not to the Graphiga command or a runtime engine abstraction.
+# Nemo: --language datalog; Datafrog: --language datafrog. This flag belongs
+# to the test runner, not the CLI or a runtime engine abstraction.
 ```
 
 The pre-implementation preparation check is:
@@ -218,9 +249,9 @@ python3 query-spikes/verify.py --check-fixture
 ```
 
 It validates TOML and expected results using an independent small oracle. It is
-not evidence that either query engine exists or passes its acceptance tests.
+not evidence that any query engine exists or passes its acceptance tests.
 
-Use the same report outline in both branches:
+Use the same report outline in all three branches:
 
 1. Query authoring experience and expressive limits for these three queries.
 2. Added production/test lines, dependencies, and integration points relative
@@ -230,6 +261,6 @@ Use the same report outline in both branches:
 4. Simplicity review findings, dispositions, and post-review repairs not re-reviewed.
 5. What was awkward, what could be removed, and any consequential limitation.
 
-No new benchmark framework is required. Neither approach wins by declaration;
-the operator chooses after inspecting both results. Preserve a usable v0 and
+No new benchmark framework is required. No approach wins by declaration;
+the operator chooses after inspecting all three results. Preserve a usable v0 and
 avoid a production query-engine abstraction until the comparison earns it.

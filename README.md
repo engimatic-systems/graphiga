@@ -25,9 +25,9 @@ The committed [reference stores](examples/README.md) contain the deferred FLAC
 inquiry and a tko-shaped ticket example. Use copies for mutation experiments.
 
 The [query-spike comparison](query-spikes/README.md) prepares one shared dataset
-and acceptance contract for predicate and Nemo alternatives. Query execution
+and acceptance contract for predicate, Nemo, and Datafrog alternatives. Query execution
 is not implemented on this baseline; see the [handoff](query-spikes/HANDOFF.md)
-for the two branch assignments.
+for the three branch assignments.
 
 ## Usage
 

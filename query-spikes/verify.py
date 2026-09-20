@@ -79,7 +79,7 @@ def check_fixture():
         for target in f.get("links", []):
             assert id in nodes[target]["fields"]["links"]
     expected = json.loads((ROOT / "expected.json").read_text())
-    for language in ("predicates", "datalog"):
+    for language in ("predicates", "datalog", "datafrog"):
         definitions = tomllib.loads((ROOT / f"{language}.toml").read_text())["queries"]
         assert set(definitions) == set(expected["baseline"])
         assert all(isinstance(value, str) and value.strip() for value in definitions.values())
@@ -95,7 +95,7 @@ def check_fixture():
     cycle = copy.deepcopy(nodes)
     cycle["demo-epic"]["fields"]["parent"] = "demo-phase"
     assert oracle(cycle)["epic_descendants"] == expected["baseline"]["epic_descendants"]
-    print("PASS: common TOML schema, nine-node fixture, both declaration tables, independent baseline/mutation/cycle expected results")
+    print("PASS: common TOML schema, nine-node fixture, all three declaration tables, independent baseline/mutation/cycle expected results")
     return expected
 
 
@@ -189,13 +189,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-fixture", action="store_true")
     parser.add_argument("--binary", type=Path)
-    parser.add_argument("--language", choices=("predicates", "datalog"))
+    parser.add_argument("--language", choices=("predicates", "datalog", "datafrog"))
     args = parser.parse_args()
     expected = check_fixture()
     if args.check_fixture:
         if args.binary or args.language:
             parser.error("--check-fixture cannot be combined with implementation arguments")
-        print("Preparation only: neither query engine was executed.")
+        print("Preparation only: no query engine was executed.")
         return
     if args.binary is None or args.language is None:
         parser.error("provide --binary and --language, or --check-fixture")

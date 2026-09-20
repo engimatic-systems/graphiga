@@ -1,8 +1,8 @@
 # Query comparison: ready-to-launch handoff
 
 **Run authorized:** the operator selected Nemo and said "run the spike please."
-This supersedes the earlier Datafrog selection and bespoke frontend plan. Run the
-two prepared alternatives with the same workload and the roles/review budget below.
+The operator then added a third arm: our own frontend over Datafrog. Run all
+three alternatives with the same workload and the roles/review budget below.
 No winner, merge, release, or production migration is authorized.
 
 System-of-record tickets in sys:
@@ -13,15 +13,16 @@ System-of-record tickets in sys:
 | Preparation | sys-gi61 | spike/graphiga-v0 |
 | Predicate implementation | sys-w44b | spike/query-predicates |
 | Nemo implementation | sys-9tqt | spike/query-datalog |
+| Datafrog implementation | sys-2fb7 | spike/query-datafrog |
 
 `origin` is `https://github.com/engimatic-systems/graphiga.git`.
-The two implementation branches are prepared at the same common commit. Their
+The three implementation branches are prepared at the same common commit. Their
 Git history, not separate snapshots/manifests, identifies the baseline and
 subsequent tested/reviewed candidates.
 
 ## Intent
 
-Implement and compare two ways to execute named schema-resident queries against
+Implement and compare three ways to execute named schema-resident queries against
 one fixed tko-shaped dataset. Read [README.md](README.md), the branch's query
 declarations, [expected.json](expected.json), and [verify.py](verify.py) completely.
 The query meanings, dataset, invocation/output, and shared tests are common.
@@ -33,7 +34,7 @@ parameters, aggregate subsystem, or generalized orchestration language is needed
 
 ## One example
 
-Both branches must support:
+All three branches must support:
 
 ```sh
 graphiga --store STORE query ready --json
@@ -47,7 +48,7 @@ demo-epic, demo-free, demo-other, demo-phase, demo-task
 ```
 
 Reopening demo-decision changes the result without recompiling: demo-task drops
-out and demo-decision enters. Both implementations must derive this from the
+out and demo-decision enters. All implementations must derive this from the
 schema query and current references/statuses, not recognize `ready` by name.
 
 ## Important invariants
@@ -66,23 +67,26 @@ schema query and current references/statuses, not recognize `ready` by name.
 - Use the existing clap, markdown-rs, TOML library, and pinned Nix environment.
   The Datalog branch uses **Nemo's existing parser and evaluator**, not a custom
   frontend. Pin Nemo and, if necessary, a branch-local reproducible nightly
-  toolchain; do not alter the host/global toolchain or fork Nemo.
-- Keep query-spikes/store, expected.json, verify.py, predicates.toml, reference
+  toolchain; do not alter the host/global toolchain or fork Nemo. The third arm
+  intentionally owns a bounded frontend/planner over Datafrog; pin that crate.
+- Keep query-spikes/store, expected.json, verify.py, predicates.toml,
+  datafrog.toml, reference
   stores, and the shared contract unchanged in implementation commits. The
   Datalog implementer may adapt datalog.toml to native Nemo syntax, retaining the
   same query names/meanings; only that branch consumes that template. Document
   the final dialect. Raise other contract/fixture defects to the primary; fix
-  them once on the shared baseline and bring the correction to both alternatives.
+  them once on the shared baseline and bring the correction to all alternatives.
 - Do not reopen incidental syntax/formatting questions already delegated by the
   contract. Return material scope or model changes instead of guessing authority.
 
 ### Working copies and publication
 
-At launch, the primary may create two worktrees for the already prepared branches:
+At launch, the primary may create three worktrees for the prepared branches:
 
 ```text
 /home/agent/sys/working/sys-2dxc/predicates   spike/query-predicates
 /home/agent/sys/working/sys-2dxc/datalog      spike/query-datalog
+/home/agent/sys/working/sys-2dxc/datafrog     spike/query-datafrog
 ```
 
 These are implementation worktrees, not snapshot/provenance copies. Each branch
@@ -103,8 +107,8 @@ Do not add snapshot/manifests or repeated source hashing to this experiment.
 
 ### Run configuration
 
-The operator's start instruction accepts the prepared configuration with Nemo
-replacing Datafrog. The following budget belongs to this comparison run.
+The operator started the comparison with Nemo and then added Datafrog as an
+independent third arm. The following per-alternative budget applies to all three.
 
 Use a persistent implementer/reviewer pair **for each alternative**, with both
 roles `openai-codex/gpt-5.6-sol`, high thinking, and direct return messages to the
@@ -140,7 +144,7 @@ cargo test --locked
 cargo clippy --locked --all-targets -- -D warnings
 cargo build --locked
 python3 query-spikes/verify.py --binary "$CARGO_TARGET_DIR/debug/graphiga" --language predicates
-# Nemo branch: identical command with --language datalog.
+# Nemo: --language datalog. Datafrog: --language datafrog.
 ```
 
 Create/update Cargo.lock normally when adding dependencies before using locked
@@ -157,7 +161,7 @@ Each implementer returns a tested commit and concise report, pauses source
 writes, and remains available for accepted repairs. Each reviewer returns its
 reviewed commit, findings with evidence/severity, and limits. The final primary
 report identifies the final tested and reviewed commits, dispositions, and any
-unreviewed repairs for both alternatives. Keep the implementation tickets open
+unreviewed repairs for all three alternatives. Keep the implementation tickets open
 for operator acceptance unless separately authorized to close them.
 
 ## Branch-specific assignment
@@ -180,3 +184,13 @@ fixpoint engine. Check embedding, toolchain and result extraction early; report
 concrete blockers instead of substituting another engine or conducting a survey.
 Follow README.md's bounded integration authority and record the pinned version,
 actual adapter complexity, and any limitations. Do not hardcode query handlers.
+
+### sys-2fb7: Datafrog
+
+Implement the bounded textual Datalog frontend, schema-derived fact projection,
+rule planning and stratified evaluation described in README.md's Datafrog section.
+This arm intentionally measures the cost of owning that code rather than using
+Nemo's language/runtime. Use Datafrog for actual joins/antijoins/fixpoints and
+execute the rules in datafrog.toml generically. No hardcoded query handlers,
+shared engine framework, or general-purpose language expansion. Include the full
+frontend/planner cost and maintenance limitations in the comparison report.
