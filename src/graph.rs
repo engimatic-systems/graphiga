@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
 
+use crate::adjacency::ReferenceAttribute;
 use crate::document::Document;
 use crate::query::Predicate;
 use crate::schema::{AttributeKind, Direction, Schema, SetKind, Value};
@@ -58,45 +59,10 @@ impl<'a> Graph<'a> {
         attribute_name: &str,
         incoming: bool,
     ) -> Result<Vec<NodeRecord>> {
-        let attribute = self.schema.attribute(attribute_name)?;
-        let direction = match &attribute.kind {
-            AttributeKind::Reference(direction)
-            | AttributeKind::Set(SetKind::Reference(direction)) => *direction,
-            _ => bail!("attribute {attribute_name} is not a reference attribute"),
-        };
+        let attribute = ReferenceAttribute::parse(attribute_name, self.schema)?;
         let source = self.show(id)?;
-        let ids = if incoming && direction == Direction::Directed {
-            self.documents
-                .iter()
-                .filter(|(_, document)| {
-                    document
-                        .reference_targets(attribute_name)
-                        .contains(id.as_str())
-                })
-                .map(|(candidate, _)| candidate)
-                .collect::<Vec<_>>()
-        } else {
-            source
-                .reference_targets(attribute_name)
-                .iter()
-                .map(|target| {
-                    NodeId::parse(target).with_context(|| {
-                        format!(
-                            "reference {attribute_name} on node {id} has invalid target {target:?}"
-                        )
-                    })
-                })
-                .collect::<Result<Vec<_>>>()?
-                .iter()
-                .map(|target| {
-                    self.documents
-                        .get_key_value(target)
-                        .map(|(stored, _)| stored)
-                        .ok_or_else(|| anyhow::anyhow!("reference target not found: {target}"))
-                })
-                .collect::<Result<Vec<_>>>()?
-        };
-        self.records(ids)
+        let ids = attribute.neighbor_ids(id, source, self.documents, incoming)?;
+        self.records(ids.iter())
     }
 
     pub(crate) fn create(

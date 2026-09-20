@@ -3,8 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Context, Result, bail};
 
+use crate::adjacency::ReferenceAttribute;
 use crate::document::Document;
-use crate::schema::{AttributeKind, Direction, Schema, SetKind, Value};
+use crate::schema::{AttributeKind, Schema, SetKind, Value};
 use crate::store::NodeId;
 
 /// A schema-bound predicate.
@@ -128,11 +129,11 @@ impl RawExpression {
                 expected,
             }),
             Self::Any { field, predicate } => Ok(Expression::Any {
-                field: ReferenceField::bind(&field, schema)?,
+                field: ReferenceAttribute::parse(&field, schema)?,
                 predicate: Box::new(predicate.bind(schema)?),
             }),
             Self::Reaches { field, target } => Ok(Expression::Reaches {
-                field: ReferenceField::bind(&field, schema)?,
+                field: ReferenceAttribute::parse(&field, schema)?,
                 target: NodeId::parse(&target)
                     .with_context(|| format!("invalid reaches target {target:?}"))?,
             }),
@@ -169,11 +170,11 @@ enum Expression {
         expected: bool,
     },
     Any {
-        field: ReferenceField,
+        field: ReferenceAttribute,
         predicate: Box<Self>,
     },
     Reaches {
-        field: ReferenceField,
+        field: ReferenceAttribute,
         target: NodeId,
     },
     Not(Box<Self>),
@@ -210,17 +211,17 @@ impl Expression {
             }
             Self::Presence { field, expected } => Ok(field.is_present(id, document)? == *expected),
             Self::Any { field, predicate } => {
-                for target in field.neighbors(id, document, documents)? {
+                for target in field.neighbor_ids(id, document, documents, false)? {
                     let target_document = documents
                         .get(&target)
-                        .ok_or_else(|| anyhow::anyhow!("reference target not found: {target}"))?;
+                        .expect("neighbor_ids established that the target is loaded");
                     if predicate.evaluate(&target, target_document, documents)? {
                         return Ok(true);
                     }
                 }
                 Ok(false)
             }
-            Self::Reaches { field, target } => field.reaches(id, document, target, documents),
+            Self::Reaches { field, target } => reaches(field, id, document, target, documents),
             Self::Not(expression) => Ok(!expression.evaluate(id, document, documents)?),
             Self::And(left, right) => Ok(left.evaluate(id, document, documents)?
                 && right.evaluate(id, document, documents)?),
@@ -430,79 +431,27 @@ impl PresenceField {
     }
 }
 
-#[derive(Debug)]
-struct ReferenceField {
-    name: String,
-    direction: Direction,
-}
-
-impl ReferenceField {
-    fn bind(name: &str, schema: &Schema) -> Result<Self> {
-        let direction = match schema.attribute(name)?.kind {
-            AttributeKind::Reference(direction)
-            | AttributeKind::Set(SetKind::Reference(direction)) => direction,
-            _ => bail!("field {name} is not a reference field"),
-        };
-        Ok(Self {
-            name: name.to_owned(),
-            direction,
-        })
-    }
-
-    fn neighbors(
-        &self,
-        id: &NodeId,
-        document: &Document,
-        documents: &BTreeMap<NodeId, Document>,
-    ) -> Result<BTreeSet<NodeId>> {
-        let mut neighbors = parse_targets(id, &self.name, document)?;
-        if self.direction == Direction::Undirected {
-            for (candidate_id, candidate) in documents {
-                if candidate
-                    .reference_targets(&self.name)
-                    .contains(id.as_str())
-                {
-                    neighbors.insert(candidate_id.clone());
-                }
-            }
+fn reaches(
+    field: &ReferenceAttribute,
+    start: &NodeId,
+    document: &Document,
+    target: &NodeId,
+    documents: &BTreeMap<NodeId, Document>,
+) -> Result<bool> {
+    let mut pending = field.neighbor_ids(start, document, documents, false)?;
+    let mut visited = BTreeSet::new();
+    while let Some(next) = pending.pop_first() {
+        let next_document = documents
+            .get(&next)
+            .expect("neighbor_ids established that the target is loaded");
+        if &next == target {
+            return Ok(true);
         }
-        Ok(neighbors)
-    }
-
-    fn reaches(
-        &self,
-        start: &NodeId,
-        document: &Document,
-        target: &NodeId,
-        documents: &BTreeMap<NodeId, Document>,
-    ) -> Result<bool> {
-        let mut pending = self.neighbors(start, document, documents)?;
-        let mut visited = BTreeSet::new();
-        while let Some(next) = pending.pop_first() {
-            let next_document = documents
-                .get(&next)
-                .ok_or_else(|| anyhow::anyhow!("reference target not found: {next}"))?;
-            if &next == target {
-                return Ok(true);
-            }
-            if visited.insert(next.clone()) {
-                pending.extend(self.neighbors(&next, next_document, documents)?);
-            }
+        if visited.insert(next.clone()) {
+            pending.extend(field.neighbor_ids(&next, next_document, documents, false)?);
         }
-        Ok(false)
     }
-}
-
-fn parse_targets(id: &NodeId, field: &str, document: &Document) -> Result<BTreeSet<NodeId>> {
-    document
-        .reference_targets(field)
-        .into_iter()
-        .map(|target| {
-            NodeId::parse(&target).with_context(|| {
-                format!("reference {field} on node {id} has invalid target {target:?}")
-            })
-        })
-        .collect()
+    Ok(false)
 }
 
 struct Parser {

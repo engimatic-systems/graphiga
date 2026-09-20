@@ -50,10 +50,15 @@ graphiga --store STORE query ready --json
 The predicate language supports scalar `= != < <= > >=`, scalar `in [...]`,
 set `contain`, `has`/`no`, `not`/`and`/`or` with parentheses, and the bounded
 reference forms `any ATTRIBUTE (predicate)` and `reaches ATTRIBUTE ID`.
-Declarations use bare tokens only: there are no quoted literals or escapes, so
-values containing whitespace or grammar punctuation cannot be expressed.
-Fields and literals are checked against the store schema before nodes are
-scanned. Structural `id`, `type`, and `title` are also readable fields.
+Declarations use bare tokens only: there are no quoted literals or escapes.
+This limits field names as well as values. A field name must fit in one bare
+token, cannot contain whitespace or grammar punctuation `()[],=!<>`, and cannot
+be used as an ordinary comparison/membership field when it is one of the prefix
+operator words `not`, `has`, `no`, `any`, or `reaches`. The schema remains free
+to declare such names, but this query language cannot address every resulting
+expression; it does not impose new schema restrictions. Fields and literals are
+checked against the store schema before nodes are scanned. Structural `id`,
+`type`, and `title` are also readable fields.
 
 Create a node with fixed two-value `--set` and `--section` groups:
 

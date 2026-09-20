@@ -1,3 +1,4 @@
+mod adjacency;
 mod document;
 mod graph;
 mod query;

@@ -22,10 +22,17 @@ Both accept only schema-declared `Reference` or `Set(Reference)` attributes and
 use undirected attributes as reciprocal relationships.
 
 Declarations have bare tokens, whitespace, parentheses, brackets, commas, and
-comparison punctuation as lexical delimiters. There are no quoted literals,
-escapes, query parameters, projections, aggregates, arithmetic, incoming walks,
-or user-defined functions. Values containing delimiters cannot be expressed.
-`not` binds tighter than `and`, which binds tighter than `or`.
+comparison punctuation as lexical delimiters. This constrains schema field names
+as well as values: queryable field names must be one bare token without
+whitespace or `()[],=!<>`, and the prefix operator words `not`, `has`, `no`,
+`any`, and `reaches` cannot be used as ordinary comparison/membership fields.
+For example, valid schema names `with space` and `has` cannot be used for the
+full set of field expressions. The implementation does not add quoting,
+escaping, or restrictions on what names the schema may declare.
+
+There are no query parameters, projections, aggregates, arithmetic, incoming
+walks, or user-defined functions. `not` binds tighter than `and`, which binds
+tighter than `or`.
 
 Fields and literals are schema-bound before evaluation. Structural `id`, `type`,
 and `title` are scalar read fields. Integer comparisons are numeric; other
@@ -39,25 +46,26 @@ or more traversals and terminates on cycles.
 
 Relative to common base `6c59a754c175f0dd6b2c818b6c61114036999620`:
 
-- Production: 789 added lines and 1 removed line (`src/query.rs` plus small
-  schema, graph, and CLI integration points).
+- Production: 814 added lines and 39 removed lines (net +775), including
+  `src/query.rs`, the small shared `src/adjacency.rs`, and schema/graph/CLI
+  integration points.
 - Tests: 215 added lines in `tests/query.rs`.
 - Dependencies: none added. The implementation reuses the existing `anyhow`,
   `clap`, `serde`, `serde_json`, and `toml` stack.
 
 The owned implementation consists of a tokenizer and recursive-descent parser,
-an unbound syntax tree, schema binding to typed fields/literals, direct value
-projection from `Document`, nested predicate evaluation for `any`, and a
-visited-set traversal for `reaches`. Boolean `not` is ordinary expression
-negation; there is no join planner, general fixpoint evaluator, or stratification
-machinery. Query results reuse `Graph`'s existing compact record projection and
-ID ordering.
+an unbound syntax tree, schema binding to typed fields/literals, shared reference
+adjacency, direct value projection from `Document`, nested predicate evaluation
+for `any`, and a visited-set traversal for `reaches`. Boolean `not` is ordinary
+expression negation; there is no join planner, general fixpoint evaluator, or
+stratification machinery. Query results reuse `Graph`'s existing compact record
+projection and ID ordering.
 
 The split between syntax and bound expressions accounts for a material part of
 the code, but ensures that invalid fields, literals, and operator/field pairings
-fail before scanning an empty store. Graph traversal scans loaded documents for
-reverse undirected declarations rather than introducing another authoritative
-edge index.
+fail before scanning an empty store. Directed incoming edge views scan loaded
+documents rather than introducing another authoritative edge index; undirected
+adjacency uses the existing reciprocal-declaration assumption.
 
 ## 3. Checks and evidence
 
@@ -90,7 +98,20 @@ Toolchain observed in the pinned shell: rustc 1.95.0, Cargo 1.95.0, rustfmt
 
 ## 4. Simplicity review
 
-Independent simplicity review is pending. No post-review repairs have been made.
+The sole independent simplicity review examined
+`466e890c1a2bc61878184bd7a63a484e15223f5e` and found no material
+supported-scope correctness defect. Both bounded recommendations were accepted:
+
+- Documentation now states that bare-token delimiters and prefix operator words
+  constrain field names as well as values. No quoting, escaping, or schema-name
+  restriction was added.
+- Reference-attribute classification, direction handling, target-ID parsing, and
+  loaded-target checks now live in one small private adjacency module shared by
+  `edges`, `any`, and `reaches`. No trait, index, or engine interface was added.
+
+These repairs were rerun through every required check but are **NOT independently
+re-reviewed**. The sole reviewed revision remains `466e890`; no additional
+review is authorized.
 
 ## 5. Awkwardness, removable parts, and limitations
 
@@ -102,10 +123,11 @@ collapsing them would mix syntax parsing with schema validation or weaken the
 fact that a parsed predicate is ready to evaluate.
 
 The evaluator reparses the selected declaration and derives graph relationships
-on every process invocation. Reverse undirected lookup is linear in the loaded
-node set at each traversal step, so this is suitable for the bounded flat-store
-spike, not a performance claim for large graphs. Title predicates also invoke
-the existing Markdown title parser per examined node.
+on every process invocation. Undirected traversal relies on v0's existing
+well-formed-store assumption that declarations are reciprocal; the spike adds no
+policy for malformed one-sided relationships. Traversal is suitable for the
+bounded flat-store spike, not a performance claim for large graphs. Title
+predicates also invoke the existing Markdown title parser per examined node.
 
 Only the documented bare-token language and current schema value vocabulary are
 tested. No hostile-query resource limits, Unicode/quoted literal syntax,
