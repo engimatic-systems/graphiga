@@ -6,9 +6,9 @@ Both alternatives start from the same committed Graphiga v0, use the same
 Only query declaration syntax and its implementation differ.
 
 - `spike/query-predicates`: tko-derived predicates plus bounded graph operators.
-- `spike/query-datalog`: restricted textual Datalog evaluated using **Datafrog**.
+- `spike/query-datalog`: schema-resident textual Datalog using **Nemo**.
 - [HANDOFF.md](HANDOFF.md) supplies launch authority, worker assignments, and
-  reporting expectations. Implementation awaits an explicit operator start.
+  reporting expectations. The operator has authorized the comparison run.
 
 The ordinary [reference stores](../examples/README.md) are preserved separately.
 `store/` is a deliberately expanded copy of the tko example, not a different
@@ -91,9 +91,12 @@ epic_descendants: demo-bug, demo-decision, demo-free, demo-held,
 - Invalid syntax and unknown queries fail even on empty input.
 - Empty matching results produce `[]`; queries preserve the store bytes.
 
-Do not change this fixture, its query meanings, overlays, oracle, or runner to
-make one implementation pass. Necessary corrections belong on the shared base
-and must reach both branches before comparison.
+Do not change this fixture, its query meanings, oracle, or runner to make one
+implementation pass. The Datalog implementer may adapt datalog.toml to Nemo's
+native syntax without changing names or meanings; no custom compatibility parser
+is wanted. That dialect-specific template is owned by the Datalog branch; its
+copy on the predicate branch is only a preparatory example. Other necessary
+corrections belong on the shared base and must reach both branches.
 
 ## Predicate alternative
 
@@ -137,8 +140,10 @@ into Graphiga. Respect source licensing/attribution if reusing implementation.
 
 ## Datalog alternative
 
-[datalog.toml](datalog.toml) contains the actual query-local programs. Each
-program exports a unary `result(NodeId)` relation and may define local helpers.
+[datalog.toml](datalog.toml) initially illustrates the query-local programs in
+conventional notation. The Datalog implementer must translate it to **Nemo's
+native syntax**, using Nemo's existing parser and evaluator. Each program exports
+a unary `result(NodeId)` relation and may define local helpers.
 The graph projects fixed input facts on demand:
 
 ```text
@@ -153,7 +158,7 @@ Set(Reference) declarations; undirected associations expose both directions.
 These are derived views of the same schema/documents, not a new store. Preserve
 scalar value distinctions rather than serializing every value to a string.
 
-The frontend is deliberately bounded:
+The workload deliberately uses a bounded part of Nemo's existing language:
 
 - Variables, quoted string constants, scalar Boolean/integer constants, and
   fixed-arity relation atoms; conjunction and multiple rules for union.
@@ -166,24 +171,32 @@ The frontend is deliberately bounded:
 - A finite domain from current facts and rule constants. No callbacks, effects,
   scheduler, transition language, generated Rust, or external Datalog service.
 
-Use **Datafrog for evaluation**, not merely as an unused dependency around a
-handwritten fixpoint engine. Its joins/antijoins and monotone iteration must do
-real work. It is a Rust evaluation library, not a textual Datalog parser or
-ready-made query-language runtime: the small parser, rule planning, and fact
-projection are part of this alternative's implementation cost.
+Use **Nemo's runtime parser and evaluation engine**. Do not build a bespoke
+Datalog parser, planner, or evaluator, nor translate rules into hardcoded Rust
+handlers. Adapt native syntax and fact ingestion rather than preserving the old
+Datafrog-oriented notation. Keep schema/documents authoritative and facts
+in-memory or disposable; no new persistent store or external reasoning service.
 
-Negated inputs must be fixed relations. Complete lower strata before evaluating
-rules that negate them; positive recursive relations may grow within a stratum.
-Record the selected crate version and any deliberate subset limitations.
+Prefer Rust embedding. Pin the selected Nemo release/revision and any required
+local toolchain in the branch, documenting integration cost and limitations.
+A branch-local reproducible nightly toolchain is allowed if needed; no global
+toolchain changes. Establish that parsing, negation, recursion and result
+extraction work early. If embedding requires a substantial fork, a custom
+frontend, or replacing Nemo, stop and report the concrete blocker rather than
+starting another backend survey. Do not vendor or redesign Nemo.
 
-References checked during preparation:
+Nemo's existing parser/planner owns rule syntax, safety and stratification.
+Small adapter-level checks for the public fact/output contract are appropriate;
+reimplementing the language to police every unused feature is not. This is a
+trusted-schema spike, not a sandbox for hostile programs. Do not introduce
+imports, exports, network access, or other effects in Graphiga's query execution.
+Record the supported subset and any limitations honestly.
 
-- <https://github.com/rust-lang/datafrog>
-- <https://docs.rs/datafrog/latest/datafrog/> (served version 2.0.1)
+Reference: <https://github.com/knowsys/nemo>.
 
-Do not implement special Rust handlers for the three example queries. The rules
-in schema must be interpreted as rules; the experiment should expose the real
-cost of generic rule evaluation over this bounded language.
+Do not implement special handlers for the three example queries. The rules in
+schema must execute as rules; measure the adapter and dependency cost rather
+than designing an engine abstraction for future replacement.
 
 ## Checks and comparison report
 
