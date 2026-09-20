@@ -1,0 +1,32 @@
+version = 0
+
+[attributes.references]
+type = "set"
+items = "reference"
+direction = "directed"
+
+[attributes.related]
+type = "set"
+items = "reference"
+direction = "undirected"
+
+[attributes.tags]
+type = "set"
+items = "string"
+
+[attributes.status]
+type = "enum"
+values = ["open", "in_progress", "done"]
+required = true
+default = "open"
+
+[attributes.reviewed]
+type = "boolean"
+required = true
+default = false
+
+[types.research]
+sections = ["Question", "Investigation", "Findings"]
+
+[types.decision]
+sections = ["Question", "Outcome"]

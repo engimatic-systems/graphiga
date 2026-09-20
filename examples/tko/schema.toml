@@ -1,0 +1,73 @@
+# Tko-shaped Graphiga v0 schema: canonical new-ticket structure, not all tko policy.
+# Source: repos/tko at 373f5b16f4ebdcd610a57dec224b53230386d51b.
+version = 0
+
+[attributes.status]
+type = "enum"
+values = ["open", "in_progress", "blocked", "closed"]
+required = true
+default = "open"
+
+[attributes.deps]
+type = "set"
+items = "reference"
+direction = "directed"
+required = true
+default = []
+
+[attributes.links]
+type = "set"
+items = "reference"
+direction = "undirected"
+required = true
+default = []
+
+# Tko supplies the current timestamp. Graphiga callers must supply it explicitly.
+[attributes.created]
+type = "string"
+required = true
+
+# Tko permits priorities 0..4 on creation (0 highest); Graphiga has no range rule.
+[attributes.priority]
+type = "integer"
+required = true
+default = 2
+
+[attributes.assignee]
+type = "string"
+
+[attributes.external_ref]
+type = "string"
+
+[attributes.parent]
+type = "reference"
+direction = "directed"
+
+[attributes.tags]
+type = "set"
+items = "string"
+
+# Match tko's create scaffolds, not the larger set of allowed headings.
+[types.bug]
+sections = ["Description", "Scope", "Design", "Acceptance Criteria"]
+
+[types.feature]
+sections = ["Description", "Scope", "Design", "Acceptance Criteria"]
+
+[types.task]
+sections = ["Description", "Scope", "Design", "Acceptance Criteria"]
+
+[types.chore]
+sections = ["Description", "Scope", "Design", "Acceptance Criteria"]
+
+[types.epic]
+sections = ["Description", "Scope", "Design", "Acceptance Criteria", "Not yet specified", "Decisions"]
+
+[types.decision]
+sections = ["Question", "Resolution"]
+
+[types.research]
+sections = ["Question", "Findings"]
+
+[types.incident]
+sections = ["Impact", "Resolution"]
