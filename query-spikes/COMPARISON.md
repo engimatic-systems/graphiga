@@ -2,7 +2,11 @@
 
 All three arms implemented the same schema-resident named queries and passed
 the shared black-box suite. Each completed one independent simplicity review.
-No winner has been selected and no implementation was merged to `main`.
+The operator subsequently accepted **query-predicates** at
+`3f92f04084468b102078e826c21b1819b0ef929e` as the direction to carry forward,
+after reading its parser and accepting the current test coverage for this stage.
+Nemo and Datafrog remain comparison artifacts. No implementation has been merged
+to `main`; acceptance does not itself authorize landing or deployment.
 
 Common implementation baseline: `6c59a754c175f0dd6b2c818b6c61114036999620`.
 The dataset, expected results, shared acceptance runner and query meanings
@@ -71,5 +75,5 @@ it did not implement the engines or perform another source review.
 
 Sys tickets: comparison `sys-2dxc`, predicates `sys-w44b`, Nemo `sys-9tqt`,
 Datafrog `sys-2fb7`. Review/evidence details remain in those tickets and their
-linked artifacts. Implementation tickets remain open for operator acceptance;
-completion of the experiment does not select an engine or authorize a merge.
+linked artifacts. The predicate implementation ticket records operator acceptance.
+Selecting that direction does not authorize a merge or production deployment.
