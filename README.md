@@ -7,6 +7,10 @@ derived from those files.
 This repository is a local experimental spike governed by [SPECv0.md](SPECv0.md),
 not a production release.
 
+Development work is tracked through the repository-local [`./tk` wrapper](docs/tk.md)
+and its committed `.tickets` store. Run `./scripts/bootstrap-tk` to build the
+separate, pinned engine used for ticket commands, then `./tk ready`.
+
 ## Development environment
 
 On x86_64 Linux, enter the pinned Cargo/rustc/rustfmt/Clippy shell from this
