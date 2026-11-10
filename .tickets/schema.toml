@@ -1,0 +1,63 @@
+# TK workflow, based on ../ticket revision 194b71a. See docs/tk.md.
+version = 0
+
+[queries]
+active = "status in [open, in_progress]"
+ready = "status in [open, in_progress] and not any deps (status != closed)"
+blocked = "status in [open, in_progress] and any deps (status != closed)"
+closed = "status = closed"
+
+[attributes.status]
+type = "enum"
+values = ["open", "in_progress", "closed"]
+required = true
+default = "open"
+
+[attributes.priority]
+type = "integer"
+required = true
+default = 2
+
+[attributes.deps]
+type = "set"
+items = "reference"
+direction = "directed"
+required = true
+default = []
+
+[attributes.links]
+type = "set"
+items = "reference"
+direction = "undirected"
+required = true
+default = []
+
+[attributes.parent]
+type = "reference"
+direction = "directed"
+
+[attributes.created]
+type = "string"
+required = true
+
+[attributes.tags]
+type = "set"
+items = "string"
+
+[attributes.external-ref]
+type = "string"
+
+[types.bug]
+sections = ["Description", "Design", "Acceptance Criteria"]
+
+[types.feature]
+sections = ["Description", "Design", "Acceptance Criteria"]
+
+[types.task]
+sections = ["Description", "Design", "Acceptance Criteria"]
+
+[types.epic]
+sections = ["Description", "Design", "Acceptance Criteria"]
+
+[types.chore]
+sections = ["Description", "Design", "Acceptance Criteria"]

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Build the accepted baseline separately from the changing working tree.
+set -euo pipefail
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+revision=6c979bd973bdb54e382db82ccf424360ecd329fa
+destination="$root/.graphiga/bin/graphiga-$revision"
+if [[ -x "$destination" ]]; then
+    printf 'Bootstrap already available: %s\n' "$destination"
+    exit 0
+fi
+build_dir=$(mktemp -d)
+trap 'rm -rf -- "$build_dir"' EXIT
+git -C "$root" archive "$revision" | tar -x -C "$build_dir"
+cd "$build_dir"
+nix develop --no-write-lock-file path:. --command cargo build --locked --release --target-dir "$build_dir/target"
+mkdir -p -- "$root/.graphiga/bin"
+install -m 755 target/release/graphiga "$destination.tmp"
+mv -- "$destination.tmp" "$destination"
+printf 'Bootstrap ready: %s\n' "$destination"

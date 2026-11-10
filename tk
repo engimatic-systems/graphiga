@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+"""Small TK workflow adapter. Graphiga owns the store and its semantics."""
+
+import argparse
+from datetime import datetime, timezone
+import json
+import os
+from pathlib import Path
+import secrets
+import string
+import subprocess
+import sys
+
+
+ROOT = Path(__file__).resolve().parent
+BASELINE = "6c979bd973bdb54e382db82ccf424360ecd329fa"
+STATUSES = ("open", "in_progress", "closed")
+TYPES = ("bug", "feature", "task", "epic", "chore")
+
+
+def parser():
+    cli = argparse.ArgumentParser(description=__doc__)
+    commands = cli.add_subparsers(dest="command", required=True)
+    create = commands.add_parser("create", help="create a ticket and print its ID")
+    create.add_argument("title", nargs="?", default="Untitled")
+    create.add_argument("-t", "--type", choices=TYPES, default="task")
+    create.add_argument("-p", "--priority", type=int, choices=range(5), default=2)
+    create.add_argument("-d", "--description")
+    create.add_argument("--design")
+    create.add_argument("--acceptance")
+    create.add_argument("--parent")
+    create.add_argument("--tags")
+    create.add_argument("--external-ref")
+    for name in ("ls", "list", "ready", "blocked", "closed"):
+        view = commands.add_parser(name, help="list matching ID/type/title rows")
+        view.add_argument("--json", action="store_true")
+    for name in ("show", "start", "close", "reopen"):
+        command = commands.add_parser(name)
+        command.add_argument("id")
+    status = commands.add_parser("status", help="set a ticket's status")
+    status.add_argument("id")
+    status.add_argument("status", choices=STATUSES)
+    for name in ("dep", "undep", "link", "unlink"):
+        relation = commands.add_parser(name)
+        relation.add_argument("id")
+        relation.add_argument("target")
+    return cli
+
+
+class Tickets:
+    def __init__(self):
+        self.binary = os.environ.get(
+            "GRAPHIGA_BIN", str(ROOT / ".graphiga" / "bin" / f"graphiga-{BASELINE}")
+        )
+        self.store = os.environ.get("TICKETS_DIR", str(ROOT / ".tickets"))
+        self._ids = None
+
+    def run(self, *arguments, capture=False):
+        result = subprocess.run(
+            [self.binary, "--store", self.store, *arguments],
+            check=True,
+            stdout=subprocess.PIPE if capture else None,
+            text=True,
+        )
+        return result.stdout
+
+    def ids(self):
+        if self._ids is None:
+            self._ids = {row["id"] for row in json.loads(self.run("list", "--json", capture=True))}
+        return self._ids
+
+    def resolve(self, fragment):
+        if fragment in self.ids():
+            return fragment
+        matches = sorted(node_id for node_id in self.ids() if fragment in node_id)
+        if not fragment or not matches:
+            raise ValueError(f"ticket not found: {fragment!r}")
+        if len(matches) != 1:
+            raise ValueError(f"ambiguous ticket {fragment!r}: {', '.join(matches)}")
+        return matches[0]
+
+    def create(self, args):
+        # Repository-local prefix; uniqueness is checked against engine records.
+        alphabet = string.ascii_lowercase + string.digits
+        while True:
+            node_id = "gr-" + "".join(secrets.choice(alphabet) for _ in range(4))
+            if node_id not in self.ids():
+                break
+        command = ["create", args.type, node_id, "--title", args.title]
+        created = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        for field, value in (
+            ("created", created),
+            ("priority", str(args.priority)),
+            ("parent", self.resolve(args.parent) if args.parent is not None else None),
+            ("tags", args.tags),
+            ("external-ref", args.external_ref),
+        ):
+            if value is not None:
+                command.extend(("--set", field, value))
+        for heading, content in (
+            ("Description", args.description),
+            ("Design", args.design),
+            ("Acceptance Criteria", args.acceptance),
+        ):
+            if content is not None:
+                command.extend(("--section", heading, content))
+        self.run(*command)
+        print(node_id)
+
+
+def main():
+    args = parser().parse_args()
+    tickets = Tickets()
+    if args.command == "create":
+        tickets.create(args)
+    elif args.command in ("ls", "list", "ready", "blocked", "closed"):
+        command = ["list"] if args.command in ("ls", "list") else ["query", args.command]
+        tickets.run(*command, *(["--json"] if args.json else []))
+    elif args.command == "show":
+        tickets.run("show", tickets.resolve(args.id), "--full")
+    elif args.command in ("start", "close", "reopen", "status"):
+        status = {
+            "start": "in_progress", "close": "closed", "reopen": "open"
+        }.get(args.command, getattr(args, "status", None))
+        tickets.run("set", tickets.resolve(args.id), "status", status)
+    else:
+        operation = "add" if args.command in ("dep", "link") else "remove"
+        attribute = "deps" if args.command in ("dep", "undep") else "links"
+        tickets.run(operation, tickets.resolve(args.id), attribute, tickets.resolve(args.target))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except subprocess.CalledProcessError as error:
+        sys.exit(error.returncode)
+    except FileNotFoundError:
+        sys.exit("tk: Graphiga executable not found; run ./scripts/bootstrap-tk or set GRAPHIGA_BIN")
+    except (ValueError, OSError) as error:
+        sys.exit(f"tk: {error}")
